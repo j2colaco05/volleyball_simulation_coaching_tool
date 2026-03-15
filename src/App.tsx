@@ -97,6 +97,8 @@ function App() {
   };
 
   const [newName, setNewName] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('#0000ff');
   const addPlayer = () => {
     if (!newName.trim()) return;
     const id = `p${Date.now()}`;
@@ -116,9 +118,19 @@ function App() {
   };
 
   const deletePlayer = () => {
-    if (!selectedId) return;
-    setPlayers(prev => prev.filter(p => p.id !== selectedId));
-    setSelectedId(null);
+    if (selectedIds.length === 0) return;
+    setPlayers(prev => prev.filter(p => !selectedIds.includes(p.id)));
+    setSelectedIds([]);
+  };
+
+  const updateSelectedName = () => {
+    if (selectedIds.length === 0 || !editName.trim()) return;
+    setPlayers(prev => prev.map(p => selectedIds.includes(p.id) ? { ...p, name: editName } : p));
+  };
+
+  const updateSelectedColor = () => {
+    if (selectedIds.length === 0) return;
+    setPlayers(prev => prev.map(p => selectedIds.includes(p.id) ? { ...p, color: editColor } : p));
   };
 
   const [saveName, setSaveName] = useState('');
@@ -138,7 +150,7 @@ function App() {
     setPlayers(initialPlayers.map(p => ({ ...p })));
     setTimeline(0);
     setPlaying(false);
-    setSelectedId(null);
+    setSelectedIds([]);
   };
 
   const deleteSimulation = (idx: number) => {
@@ -146,17 +158,17 @@ function App() {
     saveSimulations(updated);
   };
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const handleSelect = (id: string) => {
-    setSelectedId(prev => (prev === id ? null : id));
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
   const handleCanvasClick = (x: number, y: number) => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
     setPlayers(prev =>
       prev.map(p => {
-        if (p.id !== selectedId) return p;
+        if (!selectedIds.includes(p.id)) return p;
         const newAnchors = [...p.anchorPoints, { x, y }];
         const computed = sampleCurve([p.currentPosition, ...newAnchors]);
         return { ...p, anchorPoints: newAnchors, computedPath: computed };
@@ -235,7 +247,26 @@ function App() {
           style={{ padding: '5px', borderRadius: '5px', border: 'none' }}
         />
         <button onClick={addPlayer} style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', background: '#4CAF50', color: 'white' }}>Add Player</button>
-        <button onClick={deletePlayer} disabled={!selectedId} style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', background: selectedId ? '#f44336' : '#ccc', color: 'white' }}>Delete Selected Player</button>
+        <button onClick={deletePlayer} disabled={selectedIds.length === 0} style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', background: selectedIds.length > 0 ? '#f44336' : '#ccc', color: 'white' }}>Delete Selected Player</button>
+        {selectedIds.length > 0 && (
+          <>
+            <input
+              type="text"
+              placeholder="Edit name"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              style={{ padding: '5px', borderRadius: '5px', border: 'none' }}
+            />
+            <button onClick={updateSelectedName} style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', background: '#FF9800', color: 'white' }}>Update Name</button>
+            <input
+              type="color"
+              value={editColor}
+              onChange={e => setEditColor(e.target.value)}
+              style={{ padding: '5px', borderRadius: '5px', border: 'none' }}
+            />
+            <button onClick={updateSelectedColor} style={{ padding: '5px 10px', borderRadius: '5px', border: 'none', background: '#9C27B0', color: 'white' }}>Update Color</button>
+          </>
+        )}
         <input
           type="text"
           placeholder="Simulation name"
@@ -287,8 +318,9 @@ function App() {
       <Court
         players={displayPlayers}
         onPlayerMove={handleMove}
-        selectedId={selectedId}
+        selectedIds={selectedIds}
         onSelectPlayer={handleSelect}
+        onSelectionChange={setSelectedIds}
         onCanvasClick={handleCanvasClick}
         onDeleteAnchor={handleDeleteAnchor}
         playing={playing}

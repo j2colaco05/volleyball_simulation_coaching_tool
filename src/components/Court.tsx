@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Player as PlayerType } from '../types';
 import Player from './Player';
 
 interface CourtProps {
   players: PlayerType[];
   onPlayerMove: (id: string, x: number, y: number) => void;
-  selectedId?: string | null;
+  selectedIds?: string[];
   onSelectPlayer?: (id: string) => void;
+  onSelectionChange?: (ids: string[]) => void;
   onCanvasClick?: (x: number, y: number) => void;
   onDeleteAnchor?: (playerId: string, anchorIdx: number) => void;
   playing?: boolean;
@@ -16,8 +17,9 @@ interface CourtProps {
 const Court: React.FC<CourtProps> = ({
   players,
   onPlayerMove,
-  selectedId,
+  selectedIds,
   onSelectPlayer,
+  onSelectionChange,
   onCanvasClick,
   onDeleteAnchor,
   playing
@@ -26,8 +28,12 @@ const Court: React.FC<CourtProps> = ({
   const height = 300;
   const netY = 50;
 
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 });
+  const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 });
+
   const handleSvgClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!onCanvasClick) return;
+    if (!onCanvasClick || isSelecting) return;
     const svg = e.currentTarget;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
@@ -38,6 +44,48 @@ const Court: React.FC<CourtProps> = ({
     onCanvasClick(cursorpt.x, cursorpt.y);
   };
 
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return; // left click only
+    const svg = e.currentTarget;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const inv = svg.getScreenCTM()?.inverse();
+    if (!inv) return;
+    const cursorpt = pt.matrixTransform(inv);
+    setIsSelecting(true);
+    setSelectionStart(cursorpt);
+    setSelectionEnd(cursorpt);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isSelecting) return;
+    const svg = e.currentTarget;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const inv = svg.getScreenCTM()?.inverse();
+    if (!inv) return;
+    const cursorpt = pt.matrixTransform(inv);
+    setSelectionEnd(cursorpt);
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isSelecting) return;
+    setIsSelecting(false);
+    const minX = Math.min(selectionStart.x, selectionEnd.x);
+    const maxX = Math.max(selectionStart.x, selectionEnd.x);
+    const minY = Math.min(selectionStart.y, selectionEnd.y);
+    const maxY = Math.max(selectionStart.y, selectionEnd.y);
+    const selected = players.filter(p =>
+      p.currentPosition.x >= minX && p.currentPosition.x <= maxX &&
+      p.currentPosition.y >= minY && p.currentPosition.y <= maxY
+    ).map(p => p.id);
+    if (onSelectionChange) {
+      onSelectionChange(selected);
+    }
+  };
+
   return (
     <svg
       width="100%"
@@ -45,6 +93,9 @@ const Court: React.FC<CourtProps> = ({
       viewBox={`0 0 ${width} ${height}`}
       style={{ maxWidth: '600px', background: '#228B22', borderRadius: '10px', boxShadow: '0 4px 8px rgba(0,0,0,0.3)' }}
       onClick={handleSvgClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
       {/* court boundaries */}
       <rect x={0} y={0} width={width} height={height} fill="#F4A460" stroke="#000" strokeWidth={3} />
@@ -118,7 +169,7 @@ const Court: React.FC<CourtProps> = ({
           }}
         >
           <Player player={p} onMove={onPlayerMove} />
-          {selectedId === p.id && (
+          {selectedIds && selectedIds.includes(p.id) && (
             <circle
               cx={p.currentPosition.x}
               cy={p.currentPosition.y}
@@ -130,6 +181,17 @@ const Court: React.FC<CourtProps> = ({
           )}
         </g>
       ))}
+      {isSelecting && (
+        <rect
+          x={Math.min(selectionStart.x, selectionEnd.x)}
+          y={Math.min(selectionStart.y, selectionEnd.y)}
+          width={Math.abs(selectionEnd.x - selectionStart.x)}
+          height={Math.abs(selectionEnd.y - selectionStart.y)}
+          fill="rgba(0, 0, 255, 0.2)"
+          stroke="#00f"
+          strokeWidth={1}
+        />
+      )}
     </svg>
   );
 };

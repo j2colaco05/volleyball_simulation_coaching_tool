@@ -55,7 +55,7 @@ const Player: React.FC<PlayerProps> = ({ player, onMove }) => {
         ref={circleRef}
         cx={position.x}
         cy={position.y}
-        r={20}
+        r={15}
         fill={player.color}
         stroke="#000"
         onPointerDown={handlePointerDown}
