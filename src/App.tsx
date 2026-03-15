@@ -158,7 +158,7 @@ function App() {
       prev.map(p => {
         if (p.id !== selectedId) return p;
         const newAnchors = [...p.anchorPoints, { x, y }];
-        const computed = sampleCurve(newAnchors);
+        const computed = sampleCurve([p.currentPosition, ...newAnchors]);
         return { ...p, anchorPoints: newAnchors, computedPath: computed };
       })
     );
@@ -169,7 +169,7 @@ function App() {
       prev.map(p => {
         if (p.id !== playerId) return p;
         const newAnchors = p.anchorPoints.filter((_, i) => i !== anchorIdx);
-        const computed = sampleCurve(newAnchors);
+        const computed = sampleCurve([p.currentPosition, ...newAnchors]);
         return { ...p, anchorPoints: newAnchors, computedPath: computed };
       })
     );
